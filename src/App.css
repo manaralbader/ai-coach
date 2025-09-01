@@ -1,0 +1,196 @@
+.App {
+  text-align: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #E8F5E8 0%, #F0FFF0 50%, #E8F5E8 100%);
+  color: #2E8B57;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.App-header {
+  padding: 2rem 1rem;
+  background: rgba(144, 238, 144, 0.2);
+  backdrop-filter: blur(10px);
+  margin-bottom: 2rem;
+  border-bottom: 3px solid #90EE90;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.App-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: clamp(1.8rem, 5vw, 2.5rem);
+  font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(46, 139, 87, 0.3);
+  color: #2E8B57;
+  line-height: 1.2;
+}
+
+.App-header p {
+  margin: 0;
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+  opacity: 0.9;
+  color: #3CB371;
+  line-height: 1.4;
+}
+
+main {
+  padding: 0 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Button hover effects */
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Select dropdown styling */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232E8B57' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  padding-right: 40px !important;
+}
+
+select:focus {
+  outline: none;
+  border-color: #2E8B57;
+  box-shadow: 0 0 0 2px rgba(46, 139, 87, 0.2);
+}
+
+/* Video container responsive behavior */
+.video-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Control bar responsive layout */
+.control-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Counter displays */
+.counter-display {
+  background-color: #E8F5E8;
+  padding: 10px 15px;
+  border-radius: 10px;
+  border: 2px solid #90EE90;
+  min-width: 120px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .App-header {
+    padding: 1.5rem 0.5rem;
+  }
+  
+  main {
+    padding: 0 0.5rem;
+  }
+  
+  .control-bar {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .counter-display {
+    min-width: 100px;
+  }
+  
+  /* Ensure video doesn't overflow on mobile */
+  video, canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .App-header {
+    padding: 1rem 0.5rem;
+  }
+  
+  .App-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .App-header p {
+    font-size: 0.9rem;
+  }
+  
+  main {
+    padding: 0 0.25rem;
+  }
+  
+  .control-bar {
+    gap: 10px;
+  }
+  
+  .counter-display {
+    min-width: 80px;
+    padding: 8px 12px;
+  }
+}
+
+/* Smooth transitions */
+* {
+  transition: all 0.3s ease;
+}
+
+/* Ensure proper box sizing */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Improve text readability */
+p, li {
+  line-height: 1.6;
+}
+
+/* Better focus states for accessibility */
+button:focus, select:focus {
+  outline: 2px solid #2E8B57;
+  outline-offset: 2px;
+}
+
+/* Ensure full height layout */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
