@@ -1,6 +1,6 @@
-# AI Coach - Multi-Exercise Form Tracker
+# AI Coach - Multi-Exercise Form Tracker Testing
 
-A real-time exercise form validation application built with React and MediaPipe that provides instant feedback on workout technique. Perfect for home workouts, fitness coaching, and physical therapy applications.
+A real-time exercise form validation application built with React and MediaPipe that provides instant feedback on workout technique. For testing.
 
 ![AI Coach Demo](https://img.shields.io/badge/React-19.1.1-blue) ![MediaPipe](https://img.shields.io/badge/MediaPipe-Pose-orange) ![Vite](https://img.shields.io/badge/Vite-7.1.2-purple)
 
