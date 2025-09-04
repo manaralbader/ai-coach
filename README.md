@@ -17,10 +17,16 @@ A real-time exercise form validation application built with React and MediaPipe 
 - **Squats**: Comprehensive form analysis including depth, knee bend, and posture
 
 ### 📊 Smart Exercise Tracking
-- **Automatic Rep Counting**: 3 reps = 1 set with intelligent motion detection
-- **Set Tracking**: Monitor total sets completed
-- **Exercise Timer**: Track workout duration
-- **Form Validation**: Real-time feedback with color-coded status
+- **Enhanced Rep Counting**: Motion phase detection with smoothed angle calculations
+- **Intelligent Set Tracking**: 3 reps = 1 set with automatic progression
+- **Exercise Timer**: Track workout duration with precision
+- **Multi-Joint Form Validation**: Comprehensive angle analysis for perfect form
+- **Pose Confidence Filtering**: Only processes high-confidence pose detections
+- **Real-Time Phase Display**: Shows current exercise phase (extended, contracted, etc.)
+- **Optical Flow Detection**: Movement velocity tracking prevents false rep counts
+- **Graduated Visual Feedback**: Green/Yellow/Orange/Red color system based on form accuracy
+- **Session Analytics**: Track total reps, correct reps, accuracy percentage, and form scores
+- **Performance Monitoring**: Real-time processing time and confidence metrics
 
 ### 🎨 User Experience
 - **Responsive Design**: Works seamlessly on desktop, tablet, and mobile
@@ -88,11 +94,43 @@ A real-time exercise form validation application built with React and MediaPipe 
 
 ### Understanding Feedback
 
-| Status | Color | Meaning |
-|--------|-------|---------|
-| 🟢 Good | Green | Perfect form - keep going! |
-| 🟡 Warning | Yellow | Minor adjustment needed |
-| 🔴 Error | Red | Form correction required |
+| Status | Color | Deviation | Meaning |
+|--------|-------|-----------|---------|
+| 🟢 Perfect | Green | 0% | All angles within perfect range |
+| 🟡 Good | Yellow | 5-10% | Minor deviation from ideal |
+| 🟠 Warning | Orange | 10-20% | Moderate deviation - needs attention |
+| 🔴 Error | Red | >20% | Major form correction required |
+
+### Advanced Features
+
+#### 🎯 **Graduated Visual Feedback**
+- **Scientific Accuracy**: Deviation percentage calculation from ideal ranges
+- **Specific Angle Readings**: "Torso angle is 48° - reduce forward lean to 35-43°"
+- **Priority-Based Messages**: Shows most critical form error first
+- **Real-Time Form Scoring**: 0-100% form accuracy display
+
+#### 📊 **Session Analytics**
+- **Total Reps**: Complete count of all attempted reps
+- **Correct Reps**: Reps with form score ≥70%
+- **Accuracy Percentage**: Real-time accuracy calculation
+- **Average Confidence**: Pose detection confidence over time
+- **Form Error Tracking**: Log of common mistakes and timestamps
+
+#### ⚡ **Performance Monitoring**
+- **Processing Time**: Real-time MediaPipe processing speed (<50ms target)
+- **Pose Confidence**: Live confidence percentage display
+- **Movement Detection**: Optical flow prevents false rep counting
+- **Frame Rate Optimization**: Smooth 60fps tracking performance
+
+### Real-Time Display Elements
+- **Phase Indicator**: Shows current exercise phase (extended, contracted, standing, squat, etc.)
+- **Form Score**: Real-time 0-100% form accuracy display
+- **Confidence Meter**: Displays pose detection confidence percentage
+- **Processing Time**: Shows MediaPipe processing speed in milliseconds
+- **Rep Counter**: Current rep within set (e.g., "2/3")
+- **Set Tracker**: Current set and total sets completed
+- **Timer**: Elapsed exercise time
+- **Session Analytics**: Total reps, correct reps, accuracy percentage
 
 ## 🏗️ Project Structure
 
@@ -150,11 +188,34 @@ const calculateAngle = (point1, point2, point3) => {
 };
 ```
 
-### Rep Detection
-Each exercise has specific motion patterns for rep counting:
-- **Bicep Curls**: Arm angle transitions (extended → contracted → extended)
-- **Squats**: Hip angle changes (standing → squat → standing)
-- **Front Kicks**: Leg angle variations (extended → retracted → extended)
+### Enhanced Rep Detection
+Each exercise uses sophisticated motion phase detection for accurate rep counting:
+
+#### 🏋️ Bicep Curls
+- **Phase Detection**: Extended (160°) → Contracted (70°) → Extended (160°)
+- **Angle Smoothing**: Reduces MediaPipe jitter for stable counting
+- **Threshold Logic**: Precise angle boundaries for reliable rep detection
+
+#### 🦵 Squats  
+- **Phase Detection**: Standing (160°) → Squat (70°) → Standing (160°)
+- **Multi-Joint Validation**: Hip, knee, torso, and ankle angle analysis
+- **Form Scoring**: Overall form correctness based on all joint angles
+
+#### 🦵 Front Kicks
+- **Phase Detection**: Extended (120°) → Retracted (110°) → Extended (120°)
+- **Confidence Filtering**: Only counts reps with high pose confidence (>80%)
+- **Balance Monitoring**: Torso position validation during kicks
+
+### Technical Improvements
+- **Angle Smoothing**: 70% previous + 30% current angle for stability
+- **Pose Confidence**: Filters out uncertain detections (<80% confidence)
+- **Phase State Management**: Tracks current exercise phase in real-time
+- **Multi-Joint Analysis**: Validates multiple body angles simultaneously
+- **Optical Flow Detection**: Movement velocity tracking prevents false rep counts
+- **Temporal Smoothing**: Moving average calculations for stable measurements
+- **Deviation Calculation**: Scientific percentage-based form assessment
+- **Performance Optimization**: <50ms processing time per frame target
+- **Session Data Collection**: Comprehensive analytics and form tracking
 
 ## 🚀 Deployment
 

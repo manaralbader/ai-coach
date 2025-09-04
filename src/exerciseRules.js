@@ -7,6 +7,29 @@ const calculateAngle = (point1, point2, point3) => {
   return angle;
 };
 
+// Calculate deviation percentage from ideal range
+const calculateDeviation = (currentAngle, idealMin, idealMax) => {
+  if (currentAngle >= idealMin && currentAngle <= idealMax) return 0;
+  const idealMid = (idealMin + idealMax) / 2;
+  return Math.abs((currentAngle - idealMid) / idealMid) * 100;
+};
+
+// Get feedback color based on deviation percentage
+const getFeedbackColor = (deviation) => {
+  if (deviation === 0) return { color: '#90EE90', status: 'perfect' }; // Green
+  if (deviation <= 10) return { color: '#FFD700', status: 'good' }; // Yellow
+  if (deviation <= 20) return { color: '#FF8C00', status: 'warning' }; // Orange
+  return { color: '#FF6B6B', status: 'error' }; // Red
+};
+
+// Calculate overall form score (0-100%)
+const calculateFormScore = (deviations) => {
+  if (deviations.length === 0) return 100;
+  const totalDeviation = deviations.reduce((sum, dev) => sum + dev, 0);
+  const averageDeviation = totalDeviation / deviations.length;
+  return Math.max(0, 100 - averageDeviation);
+};
+
 // MediaPipe Pose landmark indices
 const LANDMARKS = {
   LEFT_SHOULDER: 11,
@@ -48,25 +71,45 @@ export const EXERCISE_RULES = {
         landmarks[LANDMARKS.LEFT_WRIST]
       );
 
+      // Calculate deviations from ideal ranges
+      const torsoDeviation = calculateDeviation(torsoUpperArmAngle, 0, 35);
+      const armDeviation = calculateDeviation(upperArmForearmAngle, 30, 70);
+      
+      // Get feedback colors for each joint
+      const torsoFeedback = getFeedbackColor(torsoDeviation);
+      const armFeedback = getFeedbackColor(armDeviation);
+      
+      // Calculate overall form score
+      const formScore = calculateFormScore([torsoDeviation, armDeviation]);
+      
+      // Determine primary feedback (worst deviation)
+      const primaryDeviation = Math.max(torsoDeviation, armDeviation);
+      const primaryFeedback = getFeedbackColor(primaryDeviation);
+      
       let feedback = '';
-      let status = 'good';
+      
+      // Generate specific feedback messages
+      if (torsoDeviation > armDeviation) {
+        if (torsoDeviation === 0) {
+          feedback = `Perfect torso position (${torsoUpperArmAngle.toFixed(1)}°)`;
+        } else {
+          feedback = `Torso angle is ${torsoUpperArmAngle.toFixed(1)}° - keep upper arm closer to torso (ideal: 0-35°)`;
+        }
+      } else {
+        if (armDeviation === 0) {
+          feedback = `Perfect arm curl (${upperArmForearmAngle.toFixed(1)}°)`;
+        } else {
+          feedback = `Arm angle is ${upperArmForearmAngle.toFixed(1)}° - curl more to reach 30-70° range`;
+        }
+      }
 
-      // Check torso-upper arm angle
-      if (torsoUpperArmAngle > 45) {
-        feedback = 'Lower your arm - keep your upper arm closer to your torso';
-        status = 'error';
-      }
-      // Check upper arm-forearm angle during contraction
-      else if (upperArmForearmAngle > 70) {
-        feedback = 'Curl your arm more - bring your hand closer to your shoulder';
-        status = 'warning';
-      }
-      else if (upperArmForearmAngle < 30) {
-        feedback = 'Good form! Keep going!';
-        status = 'good';
-      }
-
-      return { isValid: status === 'good', feedback, status };
+      return { 
+        isValid: primaryDeviation <= 10, 
+        feedback, 
+        status: primaryFeedback.status,
+        formScore: Math.round(formScore),
+        deviations: { torso: torsoDeviation, arm: armDeviation }
+      };
     },
     repDetection: (landmarks) => {
       const upperArmForearmAngle = calculateAngle(
@@ -107,25 +150,41 @@ export const EXERCISE_RULES = {
         landmarks[LANDMARKS.LEFT_KNEE]
       );
 
+      // Calculate deviations from ideal ranges
+      const legDeviation = calculateDeviation(legAngle, 120, 180); // Ideal: >120°
+      const hipDeviation = calculateDeviation(hipAngle, 71, 120);
+      
+      // Calculate overall form score
+      const formScore = calculateFormScore([legDeviation, hipDeviation]);
+      
+      // Determine primary feedback (worst deviation)
+      const primaryDeviation = Math.max(legDeviation, hipDeviation);
+      const primaryFeedback = getFeedbackColor(primaryDeviation);
+      
       let feedback = '';
-      let status = 'good';
+      
+      // Generate specific feedback messages
+      if (legDeviation > hipDeviation) {
+        if (legDeviation === 0) {
+          feedback = `Perfect leg extension (${legAngle.toFixed(1)}°)`;
+        } else {
+          feedback = `Leg angle is ${legAngle.toFixed(1)}° - extend leg more for straight kick (ideal: >120°)`;
+        }
+      } else {
+        if (hipDeviation === 0) {
+          feedback = `Perfect torso position (${hipAngle.toFixed(1)}°)`;
+        } else {
+          feedback = `Hip angle is ${hipAngle.toFixed(1)}° - keep torso more upright (ideal: 71-120°)`;
+        }
+      }
 
-      // Check leg extension
-      if (legAngle < 110) {
-        feedback = 'Extend your leg more - straighten your kick';
-        status = 'error';
-      }
-      // Check torso position
-      else if (hipAngle > 130) {
-        feedback = 'Keep your torso more upright during the kick';
-        status = 'error';
-      }
-      else if (legAngle > 120 && hipAngle >= 71 && hipAngle <= 120) {
-        feedback = 'Perfect kick form! Keep going!';
-        status = 'good';
-      }
-
-      return { isValid: status === 'good', feedback, status };
+      return { 
+        isValid: primaryDeviation <= 10, 
+        feedback, 
+        status: primaryFeedback.status,
+        formScore: Math.round(formScore),
+        deviations: { leg: legDeviation, hip: hipDeviation }
+      };
     },
     repDetection: (landmarks) => {
       const legAngle = calculateAngle(
@@ -180,38 +239,42 @@ export const EXERCISE_RULES = {
         { x: landmarks[LANDMARKS.LEFT_ANKLE].x, y: landmarks[LANDMARKS.LEFT_ANKLE].y + 1 }
       );
 
+      // Calculate deviations from ideal ranges
+      const hipDeviation = calculateDeviation(hipAngle, 50, 71);
+      const kneeDeviation = calculateDeviation(kneeAngle, 55, 68);
+      const torsoDeviation = calculateDeviation(torsoAngle, 35, 43);
+      const ankleDeviation = calculateDeviation(ankleAngle, 75, 85);
+      
+      // Calculate overall form score
+      const formScore = calculateFormScore([hipDeviation, kneeDeviation, torsoDeviation, ankleDeviation]);
+      
+      // Determine primary feedback (worst deviation)
+      const deviations = { hip: hipDeviation, knee: kneeDeviation, torso: torsoDeviation, ankle: ankleDeviation };
+      const primaryDeviation = Math.max(...Object.values(deviations));
+      const primaryFeedback = getFeedbackColor(primaryDeviation);
+      
       let feedback = '';
-      let status = 'good';
-
-      // Check squat depth
-      if (hipAngle < 44) {
-        feedback = 'Don\'t squat too deep - come up slightly';
-        status = 'error';
-      }
-      // Check knee bend
-      else if (kneeAngle > 75) {
-        feedback = 'Squat deeper - bend your knees more';
-        status = 'error';
-      }
-      // Check torso position
-      else if (torsoAngle > 45) {
-        feedback = 'Keep your chest up - don\'t lean forward too much';
-        status = 'error';
-      }
-      // Check ankle position
-      else if (ankleAngle < 75) {
-        feedback = 'Keep your weight on your heels';
-        status = 'error';
-      }
-      else if (hipAngle >= 50 && hipAngle <= 71 && 
-               kneeAngle >= 55 && kneeAngle <= 68 &&
-               torsoAngle >= 35 && torsoAngle <= 43 &&
-               ankleAngle >= 75 && ankleAngle <= 85) {
-        feedback = 'Perfect squat form! Keep going!';
-        status = 'good';
+      
+      // Generate specific feedback messages with priority order
+      if (kneeDeviation === primaryDeviation) {
+        feedback = `Knee angle is ${kneeAngle.toFixed(1)}° - ${kneeAngle > 68 ? 'bend knees more' : 'reduce knee bend'} (ideal: 55-68°)`;
+      } else if (hipDeviation === primaryDeviation) {
+        feedback = `Hip angle is ${hipAngle.toFixed(1)}° - ${hipAngle > 71 ? 'squat deeper' : 'come up slightly'} (ideal: 50-71°)`;
+      } else if (torsoDeviation === primaryDeviation) {
+        feedback = `Torso angle is ${torsoAngle.toFixed(1)}° - keep chest up (ideal: 35-43°)`;
+      } else if (ankleDeviation === primaryDeviation) {
+        feedback = `Ankle angle is ${ankleAngle.toFixed(1)}° - keep weight on heels (ideal: 75-85°)`;
+      } else {
+        feedback = `Perfect squat form! All angles within range.`;
       }
 
-      return { isValid: status === 'good', feedback, status };
+      return { 
+        isValid: primaryDeviation <= 10, 
+        feedback, 
+        status: primaryFeedback.status,
+        formScore: Math.round(formScore),
+        deviations
+      };
     },
     repDetection: (landmarks) => {
       const hipAngle = calculateAngle(

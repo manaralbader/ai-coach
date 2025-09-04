@@ -14,11 +14,26 @@ const PoseDetector = () => {
   const [feedback, setFeedback] = useState('');
   const [formStatus, setFormStatus] = useState('neutral');
   
-  // Rep and Set counting
+  // Enhanced Rep and Set counting with motion phases
   const [currentRep, setCurrentRep] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
   const [totalSets, setTotalSets] = useState(0);
-  const [isInRepPosition, setIsInRepPosition] = useState(false);
+  const [phase, setPhase] = useState('start'); // 'up', 'down', 'extended', 'contracted', 'standing', 'squat'
+  const [smoothedAngles, setSmoothedAngles] = useState({});
+  const [poseConfidence, setPoseConfidence] = useState(0);
+  
+  // Advanced features
+  const [formScore, setFormScore] = useState(100);
+  const [sessionData, setSessionData] = useState({
+    totalReps: 0,
+    correctReps: 0,
+    formErrors: [],
+    averageConfidence: 0,
+    exerciseTime: 0
+  });
+  const [movementVelocity, setMovementVelocity] = useState({});
+  const [angleHistory, setAngleHistory] = useState({});
+  const [processingTime, setProcessingTime] = useState(0);
   
   // Timer functionality
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -47,6 +62,7 @@ const PoseDetector = () => {
 
         // Set up pose detection callback
         pose.onResults((results) => {
+          const startTime = performance.now();
           const canvasCtx = canvasRef.current.getContext('2d');
           const video = videoRef.current;
           
@@ -64,6 +80,14 @@ const PoseDetector = () => {
 
           // Draw pose landmarks if detected
           if (results.poseLandmarks) {
+            // Calculate pose confidence
+            const confidence = calculatePoseConfidence(results.poseLandmarks);
+            setPoseConfidence(confidence);
+            
+            // Calculate movement velocity for optical flow
+            const velocity = calculateMovementVelocity(results.poseLandmarks);
+            setMovementVelocity(velocity);
+            
             // Draw continuous skeletal structure with proper connections
             drawConnectors(canvasCtx, results.poseLandmarks, pose.POSE_CONNECTIONS,
               { color: '#90EE90', lineWidth: 3 }); // Light green for skeleton lines
@@ -75,13 +99,32 @@ const PoseDetector = () => {
             // Validate form and count reps if exercise is started
             if (isExerciseStarted) {
               const currentExercise = EXERCISE_RULES[selectedExercise];
-              const formValidation = currentExercise.validation(results.poseLandmarks);
-              setFeedback(formValidation.feedback);
-              setFormStatus(formValidation.status);
               
-              // Rep counting logic
-              handleRepCounting(results.poseLandmarks, formValidation);
+              if (currentExercise && currentExercise.validation) {
+                const formValidation = currentExercise.validation(results.poseLandmarks);
+                setFeedback(formValidation.feedback);
+                setFormStatus(formValidation.status);
+                
+                // Update form score
+                if (formValidation.formScore !== undefined) {
+                  setFormScore(formValidation.formScore);
+                }
+                
+                // Update session data
+                updateSessionData(formValidation, confidence);
+                
+                // Enhanced rep counting with motion phases and movement detection
+                handleEnhancedRepCounting(results.poseLandmarks, formValidation, velocity);
+              } else {
+                console.error('Exercise rules not found for:', selectedExercise);
+                setFeedback('Exercise rules not loaded properly');
+                setFormStatus('error');
+              }
             }
+            
+            // Measure processing time
+            const endTime = performance.now();
+            setProcessingTime(endTime - startTime);
           }
         });
 
@@ -119,88 +162,128 @@ const PoseDetector = () => {
     };
   }, [isExerciseStarted, selectedExercise]);
 
-  // Rep counting logic
-  const handleRepCounting = (landmarks, formValidation) => {
-    const currentExercise = EXERCISE_RULES[selectedExercise];
+  // Enhanced rep counting with motion phase detection and optical flow
+  const handleEnhancedRepCounting = (landmarks, formValidation, velocity) => {
+    // Only count reps if there's significant movement (optical flow threshold)
+    const hasMovement = Object.values(velocity).some(v => v && v.magnitude > 0.01);
+    
+    if (!hasMovement) {
+      return; // Don't count reps if user is just holding position
+    }
     
     switch (selectedExercise) {
       case 'bicepCurls':
-        // Count rep when arm goes from extended to contracted and back
-        const upperArmForearmAngle = calculateAngle(
-          landmarks[11], // LEFT_SHOULDER
-          landmarks[13], // LEFT_ELBOW
-          landmarks[15]  // LEFT_WRIST
-        );
-        
-        if (upperArmForearmAngle < 60 && !isInRepPosition) {
-          setIsInRepPosition(true);
-        } else if (upperArmForearmAngle > 120 && isInRepPosition) {
-          // Rep completed
-          setIsInRepPosition(false);
-          setCurrentRep(prev => {
-            const newRep = prev + 1;
-            if (newRep >= 3) {
-              // Set completed
-              setCurrentSet(prevSet => prevSet + 1);
-              setTotalSets(prevTotal => prevTotal + 1);
-              return 0; // Reset rep counter
-            }
-            return newRep;
-          });
-        }
+        handleBicepCurlRepCounting(landmarks, velocity);
         break;
-        
       case 'squats':
-        // Count rep when going from standing to squat and back
-        const hipAngle = calculateAngle(
-          landmarks[11], // LEFT_SHOULDER
-          landmarks[23], // LEFT_HIP
-          landmarks[25]  // LEFT_KNEE
-        );
-        
-        if (hipAngle < 80 && !isInRepPosition) {
-          setIsInRepPosition(true);
-        } else if (hipAngle > 150 && isInRepPosition) {
-          // Rep completed
-          setIsInRepPosition(false);
-          setCurrentRep(prev => {
-            const newRep = prev + 1;
-            if (newRep >= 3) {
-              // Set completed
-              setCurrentSet(prevSet => prevSet + 1);
-              setTotalSets(prevTotal => prevTotal + 1);
-              return 0; // Reset rep counter
-            }
-            return newRep;
-          });
-        }
+        handleSquatRepCounting(landmarks, velocity);
         break;
-        
       case 'frontKicks':
-        // Count rep for each complete kick motion
-        const legAngle = calculateAngle(
-          landmarks[23], // LEFT_HIP
-          landmarks[25], // LEFT_KNEE
-          landmarks[27]  // LEFT_ANKLE
-        );
-        
-        if (legAngle > 120 && !isInRepPosition) {
-          setIsInRepPosition(true);
-        } else if (legAngle < 90 && isInRepPosition) {
-          // Rep completed
-          setIsInRepPosition(false);
-          setCurrentRep(prev => {
-            const newRep = prev + 1;
-            if (newRep >= 3) {
-              // Set completed
-              setCurrentSet(prevSet => prevSet + 1);
-              setTotalSets(prevTotal => prevTotal + 1);
-              return 0; // Reset rep counter
-            }
-            return newRep;
-          });
-        }
+        handleFrontKickRepCounting(landmarks, velocity);
         break;
+    }
+  };
+
+  // Bicep curl rep counting: Extended → Contracted → Extended
+  const handleBicepCurlRepCounting = (landmarks, velocity) => {
+    const upperArmForearmAngle = getSmoothedAngle('bicepCurl', calculateAngle(
+      landmarks[11], // LEFT_SHOULDER
+      landmarks[13], // LEFT_ELBOW
+      landmarks[15]  // LEFT_WRIST
+    ));
+
+    const extendedThreshold = 160;
+    const contractedThreshold = 70;
+
+    if (phase !== 'contracted' && upperArmForearmAngle < contractedThreshold) {
+      setPhase('contracted');
+    } else if (phase === 'contracted' && upperArmForearmAngle > extendedThreshold) {
+      // Rep completed: went from contracted back to extended
+      const wasCorrectRep = formScore >= 70; // Consider rep correct if form score >= 70%
+      
+      setCurrentRep(prev => {
+        const newRep = prev + 1;
+        if (newRep >= 3) {
+          // Set completed
+          setCurrentSet(prevSet => prevSet + 1);
+          setTotalSets(prevTotal => prevTotal + 1);
+          return 0; // Reset rep counter
+        }
+        return newRep;
+      });
+      
+      // Update session data
+      setSessionData(prev => ({
+        ...prev,
+        totalReps: prev.totalReps + 1,
+        correctReps: prev.correctReps + (wasCorrectRep ? 1 : 0)
+      }));
+      
+      setPhase('extended');
+    } else if (upperArmForearmAngle > extendedThreshold) {
+      setPhase('extended');
+    }
+  };
+
+  // Squat rep counting: Standing → Squat → Standing
+  const handleSquatRepCounting = (landmarks, velocity) => {
+    const hipAngle = getSmoothedAngle('squat', calculateAngle(
+      landmarks[11], // LEFT_SHOULDER
+      landmarks[23], // LEFT_HIP
+      landmarks[25]  // LEFT_KNEE
+    ));
+
+    const standingThreshold = 160;
+    const squatThreshold = 70;
+
+    if (phase !== 'squat' && hipAngle < squatThreshold) {
+      setPhase('squat');
+    } else if (phase === 'squat' && hipAngle > standingThreshold) {
+      // Rep completed: went from squat back to standing
+      setCurrentRep(prev => {
+        const newRep = prev + 1;
+        if (newRep >= 3) {
+          // Set completed
+          setCurrentSet(prevSet => prevSet + 1);
+          setTotalSets(prevTotal => prevTotal + 1);
+          return 0; // Reset rep counter
+        }
+        return newRep;
+      });
+      setPhase('standing');
+    } else if (hipAngle > standingThreshold) {
+      setPhase('standing');
+    }
+  };
+
+  // Front kick rep counting: Extended → Retracted → Extended
+  const handleFrontKickRepCounting = (landmarks, velocity) => {
+    const legAngle = getSmoothedAngle('frontKick', calculateAngle(
+      landmarks[23], // LEFT_HIP
+      landmarks[25], // LEFT_KNEE
+      landmarks[27]  // LEFT_ANKLE
+    ));
+
+    const extendedThreshold = 120;
+    const retractedThreshold = 110;
+
+    if (phase !== 'retracted' && legAngle < retractedThreshold) {
+      setPhase('retracted');
+    } else if (phase === 'retracted' && legAngle > extendedThreshold) {
+      // Rep completed: went from retracted back to extended
+      setCurrentRep(prev => {
+        const newRep = prev + 1;
+        if (newRep >= 3) {
+          // Set completed
+          setCurrentSet(prevSet => prevSet + 1);
+          setTotalSets(prevTotal => prevTotal + 1);
+          return 0; // Reset rep counter
+        }
+        return newRep;
+      });
+      setPhase('extended');
+    } else if (legAngle > extendedThreshold) {
+      setPhase('extended');
     }
   };
 
@@ -231,6 +314,8 @@ const PoseDetector = () => {
   };
 
   const startExercise = () => {
+    console.log('Starting exercise:', selectedExercise);
+    console.log('Exercise rules available:', EXERCISE_RULES[selectedExercise]);
     setIsExerciseStarted(true);
     setFeedback('Exercise started! Begin your ' + EXERCISE_RULES[selectedExercise].name.toLowerCase() + '.');
     setFormStatus('neutral');
@@ -245,6 +330,7 @@ const PoseDetector = () => {
   };
 
   const handleExerciseChange = (exercise) => {
+    console.log('Exercise changed to:', exercise);
     setSelectedExercise(exercise);
     setIsExerciseStarted(false);
     setFeedback('');
@@ -252,14 +338,17 @@ const PoseDetector = () => {
     resetTimer();
     setCurrentRep(0);
     setCurrentSet(1);
-    setIsInRepPosition(false);
+    setPhase('start');
+    setSmoothedAngles({});
+    setPoseConfidence(0);
   };
 
   const resetCounters = () => {
     setCurrentRep(0);
     setCurrentSet(1);
     setTotalSets(0);
-    setIsInRepPosition(false);
+    setPhase('start');
+    setSmoothedAngles({});
     resetTimer();
   };
 
@@ -273,6 +362,71 @@ const PoseDetector = () => {
   };
 
   const currentExercise = EXERCISE_RULES[selectedExercise];
+
+  // Smooth noisy MediaPipe data with temporal smoothing
+  const getSmoothedAngle = (key, currentAngle) => {
+    setSmoothedAngles(prev => {
+      const prevAngle = prev[key] || currentAngle;
+      const smoothedAngle = (prevAngle * 0.7) + (currentAngle * 0.3);
+      return { ...prev, [key]: smoothedAngle };
+    });
+    return smoothedAngles[key] || currentAngle;
+  };
+
+  // Calculate movement velocity for optical flow detection
+  const calculateMovementVelocity = (landmarks) => {
+    const currentTime = Date.now();
+    const keyJoints = [11, 13, 15, 23, 25, 27]; // shoulder, elbow, wrist, hip, knee, ankle
+    
+    setAngleHistory(prev => {
+      const newHistory = { ...prev };
+      const timeDiff = currentTime - (prev.lastTime || currentTime);
+      
+      keyJoints.forEach(jointIndex => {
+        if (landmarks[jointIndex]) {
+          const currentPos = { x: landmarks[jointIndex].x, y: landmarks[jointIndex].y };
+          const prevPos = prev[jointIndex] || currentPos;
+          
+          const velocity = {
+            x: (currentPos.x - prevPos.x) / (timeDiff / 1000),
+            y: (currentPos.y - prevPos.y) / (timeDiff / 1000),
+            magnitude: Math.sqrt(Math.pow(currentPos.x - prevPos.x, 2) + Math.pow(currentPos.y - prevPos.y, 2)) / (timeDiff / 1000)
+          };
+          
+          newHistory[jointIndex] = currentPos;
+        }
+      });
+      
+      newHistory.lastTime = currentTime;
+      return newHistory;
+    });
+    
+    return movementVelocity;
+  };
+
+  // Update session analytics
+  const updateSessionData = (formValidation, confidence) => {
+    setSessionData(prev => {
+      const newData = { ...prev };
+      
+      // Update average confidence
+      newData.averageConfidence = (prev.averageConfidence + confidence) / 2;
+      
+      // Track form errors
+      if (formValidation.status === 'error' || formValidation.status === 'warning') {
+        newData.formErrors.push({
+          timestamp: Date.now(),
+          error: formValidation.feedback,
+          status: formValidation.status
+        });
+      }
+      
+      // Update exercise time
+      newData.exerciseTime = elapsedTime;
+      
+      return newData;
+    });
+  };
 
   return (
     <div style={{ 
@@ -533,6 +687,72 @@ const PoseDetector = () => {
         }}>
           Status: {isDetecting ? (isExerciseStarted ? 'Tracking Exercise' : 'Ready to Start') : 'Initializing...'}
         </p>
+
+        {/* Advanced Metrics Display */}
+        {isExerciseStarted && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+            gap: '10px',
+            marginBottom: '15px'
+          }}>
+            {/* Current Phase */}
+            <div style={{
+              backgroundColor: '#E8F5E8',
+              padding: '8px 15px',
+              borderRadius: '8px',
+              border: '2px solid #90EE90',
+              textAlign: 'center'
+            }}>
+              <div style={{ color: '#2E8B57', fontWeight: '600', fontSize: '0.8rem' }}>Phase</div>
+              <div style={{ color: '#2E8B57', fontSize: '1rem', fontWeight: '700', textTransform: 'capitalize' }}>
+                {phase}
+              </div>
+            </div>
+
+            {/* Form Score */}
+            <div style={{
+              backgroundColor: formScore >= 80 ? '#E8F5E8' : formScore >= 60 ? '#FFF3CD' : '#FFE6E6',
+              padding: '8px 15px',
+              borderRadius: '8px',
+              border: `2px solid ${formScore >= 80 ? '#90EE90' : formScore >= 60 ? '#FFD700' : '#FF6B6B'}`,
+              textAlign: 'center'
+            }}>
+              <div style={{ color: '#2E8B57', fontWeight: '600', fontSize: '0.8rem' }}>Form Score</div>
+              <div style={{ color: '#2E8B57', fontSize: '1rem', fontWeight: '700' }}>
+                {formScore}%
+              </div>
+            </div>
+
+            {/* Pose Confidence */}
+            <div style={{
+              backgroundColor: poseConfidence >= 0.8 ? '#E8F5E8' : '#FFF3CD',
+              padding: '8px 15px',
+              borderRadius: '8px',
+              border: `2px solid ${poseConfidence >= 0.8 ? '#90EE90' : '#FFD700'}`,
+              textAlign: 'center'
+            }}>
+              <div style={{ color: '#2E8B57', fontWeight: '600', fontSize: '0.8rem' }}>Confidence</div>
+              <div style={{ color: '#2E8B57', fontSize: '1rem', fontWeight: '700' }}>
+                {Math.round(poseConfidence * 100)}%
+              </div>
+            </div>
+
+            {/* Processing Time */}
+            <div style={{
+              backgroundColor: processingTime < 50 ? '#E8F5E8' : '#FFF3CD',
+              padding: '8px 15px',
+              borderRadius: '8px',
+              border: `2px solid ${processingTime < 50 ? '#90EE90' : '#FFD700'}`,
+              textAlign: 'center'
+            }}>
+              <div style={{ color: '#2E8B57', fontWeight: '600', fontSize: '0.8rem' }}>Processing</div>
+              <div style={{ color: '#2E8B57', fontSize: '1rem', fontWeight: '700' }}>
+                {Math.round(processingTime)}ms
+              </div>
+            </div>
+          </div>
+        )}
         
         {feedback && (
           <div style={{
@@ -550,6 +770,46 @@ const PoseDetector = () => {
           </div>
         )}
         
+        {/* Session Analytics */}
+        {isExerciseStarted && (
+          <div style={{ 
+            padding: '15px',
+            backgroundColor: '#E8F5E8',
+            borderRadius: '10px',
+            border: '2px solid #90EE90',
+            marginBottom: '15px'
+          }}>
+            <h3 style={{ color: '#2E8B57', marginBottom: '10px', textAlign: 'center' }}>Session Analytics:</h3>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              gap: '10px',
+              textAlign: 'center'
+            }}>
+              <div>
+                <div style={{ color: '#2E8B57', fontWeight: '600', fontSize: '0.9rem' }}>Total Reps</div>
+                <div style={{ color: '#2E8B57', fontSize: '1.2rem', fontWeight: '700' }}>{sessionData.totalReps}</div>
+              </div>
+              <div>
+                <div style={{ color: '#2E8B57', fontWeight: '600', fontSize: '0.9rem' }}>Correct Reps</div>
+                <div style={{ color: '#2E8B57', fontSize: '1.2rem', fontWeight: '700' }}>{sessionData.correctReps}</div>
+              </div>
+              <div>
+                <div style={{ color: '#2E8B57', fontWeight: '600', fontSize: '0.9rem' }}>Accuracy</div>
+                <div style={{ color: '#2E8B57', fontSize: '1.2rem', fontWeight: '700' }}>
+                  {sessionData.totalReps > 0 ? Math.round((sessionData.correctReps / sessionData.totalReps) * 100) : 0}%
+                </div>
+              </div>
+              <div>
+                <div style={{ color: '#2E8B57', fontWeight: '600', fontSize: '0.9rem' }}>Avg Confidence</div>
+                <div style={{ color: '#2E8B57', fontSize: '1.2rem', fontWeight: '700' }}>
+                  {Math.round(sessionData.averageConfidence * 100)}%
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Exercise Instructions */}
         <div style={{ 
           padding: '15px',
@@ -582,6 +842,27 @@ const calculateAngle = (point1, point2, point3) => {
   let angle = Math.abs(radians * 180.0 / Math.PI);
   if (angle > 180.0) angle = 360 - angle;
   return angle;
+};
+
+// Smooth noisy MediaPipe data - this will be defined inside the component
+
+// Calculate pose confidence based on landmark visibility
+const calculatePoseConfidence = (landmarks) => {
+  if (!landmarks || landmarks.length === 0) return 0;
+  
+  // Key landmarks for pose confidence
+  const keyLandmarks = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]; // shoulders, elbows, wrists, hips, knees, ankles
+  let visibleCount = 0;
+  
+  keyLandmarks.forEach(index => {
+    if (landmarks[index] && landmarks[index].visibility && landmarks[index].visibility > 0.3) {
+      visibleCount++;
+    }
+  });
+  
+  const confidence = visibleCount / keyLandmarks.length;
+  console.log('Confidence calculation:', { visibleCount, total: keyLandmarks.length, confidence });
+  return confidence;
 };
 
 export default PoseDetector;
