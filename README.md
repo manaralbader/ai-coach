@@ -229,11 +229,6 @@ npm run build
 npm run preview
 ```
 
-### Deploy to Vercel/Netlify
-1. Push your code to GitHub
-2. Connect your repository to Vercel or Netlify
-3. Deploy automatically on push
-
 ## 🤝 Contributing
 
 ### Adding New Exercises
@@ -273,21 +268,3 @@ npm run preview
 - Reduce browser extensions
 - Check system resources
 
-### Browser Compatibility
-- ✅ Chrome (recommended)
-- ✅ Firefox
-- ✅ Safari
-- ✅ Edge
-
-
-## 🔒 Privacy & Security
-
-- **Local Processing**: All pose detection runs in your browser
-- **No Data Collection**: No personal data is stored or transmitted
-- **Camera Access**: Only used for pose detection, not recorded
-
-
-
----
-
-*Built with ❤️ using React and MediaPipe*
