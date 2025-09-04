@@ -1,6 +1,6 @@
-# AI Coach - Multi-Exercise Form Tracker
+# AI Coach - Multi-Exercise Form Tracker Testing
 
-A real-time exercise form validation application built with React and MediaPipe that provides instant feedback on workout technique. Perfect for home workouts, fitness coaching, and physical therapy applications.
+A real-time exercise form validation application built with React and MediaPipe that provides instant feedback on workout technique. For testing.
 
 ![AI Coach Demo](https://img.shields.io/badge/React-19.1.1-blue) ![MediaPipe](https://img.shields.io/badge/MediaPipe-Pose-orange) ![Vite](https://img.shields.io/badge/Vite-7.1.2-purple)
 
@@ -45,7 +45,7 @@ A real-time exercise form validation application built with React and MediaPipe 
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/manaralbader/ai-coach
    cd ai-coach
    ```
 
@@ -279,12 +279,6 @@ npm run preview
 - ✅ Safari
 - ✅ Edge
 
-## 📱 Mobile Support
-
-The application is fully responsive and works on:
-- **iOS Safari**: 14+
-- **Android Chrome**: 90+
-- **Tablets**: iPad, Android tablets
 
 ## 🔒 Privacy & Security
 
@@ -292,26 +286,8 @@ The application is fully responsive and works on:
 - **No Data Collection**: No personal data is stored or transmitted
 - **Camera Access**: Only used for pose detection, not recorded
 
-## 📄 License
 
-This project is open source and available under the [MIT License](LICENSE).
-
-## 🙏 Acknowledgments
-
-- **MediaPipe**: Google's pose detection technology
-- **React Team**: For the amazing framework
-- **Vite**: For the fast build tool
-
-## 📞 Support
-
-For questions or issues:
-1. Check the troubleshooting section
-2. Review the exercise guidelines
-3. Test with different lighting conditions
-4. Create an issue in the repository
 
 ---
-
-**Happy Exercising! 💪**
 
 *Built with ❤️ using React and MediaPipe*
